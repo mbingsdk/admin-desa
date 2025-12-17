@@ -1,30 +1,52 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useEffect, useRef } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { bootstrapAuth } from "./features/auth/authSlice";
+
+import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
-import PendudukList from "./pages/PendudukList";
-import SuratList from "./pages/SuratList";
-import KeuanganList from "./pages/KeuanganList";
-import ArsipList from "./pages/ArsipList";
+import Forbidden from "./pages/Forbidden";
+import { appRoutes } from "./config/appRoutes.jsx";
 
 export default function App() {
-  const { isAuthenticated } = useSelector((state) => state.auth);
+  const dispatch = useDispatch();
+  const bootstrapped = useRef(false);
+  const { isLoading } = useSelector((s) => s.auth);
+
+  useEffect(() => {
+    if (!bootstrapped.current) {
+      bootstrapped.current = true;
+      dispatch(bootstrapAuth());
+    }
+  }, [dispatch]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <span className="loading loading-spinner loading-lg" />
+      </div>
+    );
+  }
 
   return (
     <BrowserRouter>
       <Routes>
-        {isAuthenticated ? (
-          <>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/penduduk" element={<PendudukList />} />
-            <Route path="/surat" element={<SuratList />} />
-            <Route path="/keuangan" element={<KeuanganList />} />
-            <Route path="/arsip" element={<ArsipList />} />
-          </>
-        ) : (
-          <Route path="/*" element={<Navigate to="/login" />} />
-        )}
+        {/* Public */}
         <Route path="/login" element={<Login />} />
+        <Route path="/403" element={<Forbidden />} />
+
+        {/* Protected dynamic routes */}
+        {appRoutes.map((route) => (
+          <Route
+            key={route.path}
+            path={route.path}
+            element={
+              <ProtectedRoute roles={route.roles}>
+                {route.element}
+              </ProtectedRoute>
+            }
+          />
+        ))}
       </Routes>
     </BrowserRouter>
   );

@@ -1,32 +1,54 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import authService from "./authService";
-import Cookies from "js-cookie";
 
+/**
+ * Initial State
+ * Jangan percaya cookie untuk auth state
+ */
 const initialState = {
   user: null,
-  isLoading: false,
-  isAuthenticated: !!Cookies.get("accessToken"),
+  isAuthenticated: false,
+  isLoading: false,        // ⬅️ hanya untuk login action
+  isBootstrapping: true,   // ⬅️ INI KUNCI
+  error: null,
 };
 
-// Login
-export const login = createAsyncThunk("auth/login", async (credentials, thunkAPI) => {
-  try {
-    return await authService.login(credentials);
-  } catch (err) {
-    return thunkAPI.rejectWithValue(err.response?.data?.message || "Login gagal");
+/**
+ * LOGIN
+ */
+export const login = createAsyncThunk(
+  "auth/login",
+  async (credentials, thunkAPI) => {
+    try {
+      return await authService.login(credentials);
+    } catch (err) {
+      return thunkAPI.rejectWithValue(
+        err.response?.data?.message || "Login gagal"
+      );
+    }
   }
-});
+);
 
-// Get Profile
-export const fetchProfile = createAsyncThunk("auth/profile", async (_, thunkAPI) => {
-  try {
-    return await authService.getProfile();
-  } catch (err) {
-    return thunkAPI.rejectWithValue("Gagal memuat profil");
+/**
+ * BOOTSTRAP AUTH (dipanggil sekali saat app load)
+ * - cek session via /auth/profile
+ * - interceptor akan auto refresh token kalau perlu
+ */
+export const bootstrapAuth = createAsyncThunk(
+  "auth/bootstrap",
+  async (_, thunkAPI) => {
+    try {
+      const user = await authService.getProfile();
+      return user;
+    } catch {
+      return thunkAPI.rejectWithValue("Not authenticated");
+    }
   }
-});
+);
 
-// Logout
+/**
+ * LOGOUT
+ */
 export const logout = createAsyncThunk("auth/logout", async () => {
   authService.logout();
 });
@@ -37,24 +59,51 @@ const authSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
+
+      /* =====================
+         LOGIN
+      ===================== */
       .addCase(login.pending, (state) => {
         state.isLoading = true;
+        state.error = null;
       })
       .addCase(login.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isAuthenticated = true;
         state.user = action.payload.user;
       })
-      .addCase(login.rejected, (state) => {
+      .addCase(login.rejected, (state, action) => {
         state.isLoading = false;
         state.isAuthenticated = false;
+        state.user = null;
+        state.error = action.payload;
       })
-      .addCase(fetchProfile.fulfilled, (state, action) => {
+
+      /* =====================
+         BOOTSTRAP AUTH
+      ===================== */
+      .addCase(bootstrapAuth.pending, (state) => {
+        state.isBootstrapping = true;
+      })
+
+      .addCase(bootstrapAuth.fulfilled, (state, action) => {
+        state.isBootstrapping = false;
+        state.isAuthenticated = true;
         state.user = action.payload;
       })
+
+      .addCase(bootstrapAuth.rejected, (state) => {
+        // ❗ JANGAN logout
+        state.isBootstrapping = false;
+      })
+
+      /* =====================
+         LOGOUT
+      ===================== */
       .addCase(logout.fulfilled, (state) => {
         state.user = null;
         state.isAuthenticated = false;
+        state.error = null;
       });
   },
 });

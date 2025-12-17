@@ -1,11 +1,18 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { Navigate } from "react-router-dom";
 import { login } from "../features/auth/authSlice";
 
 export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
-  const { isLoading } = useSelector((s) => s.auth);
+  const { isAuthenticated, isBootstrapping, isLoading } = useSelector((s) => s.auth);
   const dispatch = useDispatch();
+
+  if (isBootstrapping) return null;
+
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
   const handleSubmit = (e) => {

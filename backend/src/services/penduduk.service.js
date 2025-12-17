@@ -1,8 +1,10 @@
 import Penduduk from "../models/penduduk.model.js";
+import { applyWilayahScope } from "../middlewares/scope.middleware.js";
 
 // ✅ Ambil semua data penduduk
-export const getAllPenduduk = async () => {
-  return await Penduduk.find().sort({ createdAt: -1 });
+export const getAllPenduduk = async (req) => {
+  const filter = applyWilayahScope(req, {}); // scope berdasarkan user
+  return Penduduk.find(filter).sort({ createdAt: -1 });
 };
 
 // ✅ Tambah data penduduk baru

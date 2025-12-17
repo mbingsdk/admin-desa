@@ -8,7 +8,7 @@ import {
 // GET semua penduduk
 export const getPenduduk = async (req, res) => {
   try {
-    const data = await getAllPenduduk();
+    const data = await getAllPenduduk(req);
     res.json(data);
   } catch (error) {
     console.error(error);

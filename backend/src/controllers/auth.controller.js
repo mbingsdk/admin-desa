@@ -22,6 +22,7 @@ export const login = async (req, res) => {
     res.cookie("refreshToken", result.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 hari
     });
     res.json({
@@ -34,11 +35,23 @@ export const login = async (req, res) => {
   }
 };
 
+// POST /api/auth/refresh
 export const refreshToken = async (req, res) => {
   try {
     const refreshToken = req.cookies.refreshToken;
-    const newTokens = await refreshAccessToken(refreshToken);
-    res.json(newTokens);
+    const { accessToken, refreshToken: newRefreshToken } =
+      await refreshAccessToken(refreshToken);
+
+    // ⬅️ penting: rotate cookie juga
+    res.cookie("refreshToken", newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    // frontend cuma butuh accessToken
+    res.json({ accessToken });
   } catch (error) {
     res.status(403).json({ message: error.message });
   }
